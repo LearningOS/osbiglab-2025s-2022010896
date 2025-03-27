@@ -7,6 +7,11 @@
 1. 阅读并理解了 cRTOS 中的 syscall 转发机制，包括 nimbos app 和 hello 的通信方式，以及 nimbos-driver 的注册和初始化过程；
 2. 构建了支持用户态中断（uintr）的 Linux 环境，将 RVM1.5 迁移到支持用户态中断的 QEMU + Linux 内核上；
 
+下一周计划：
+
+1. 探索如何在 nimbos 内启用 uipi（直接用 支持用户态中断的 QEMU 启动 nimbos）；
+2. 思考 cRTOS 中的 uipi 机制，能否实现 syscall 转发的优化。
+
 ### 学习笔记
 
 #### nimbos 的 syscall 转发
