@@ -4,14 +4,22 @@
 
 #### 本周工作
 
-#### 代码阅读报告
+1. 阅读了 uintr-linux-kernel（intel 版）的大部分代码，记录代码阅读笔记（草稿）。
+
+下周展望：
+
+1. 阅读 nimbos 源码，设计 nimbos 中的 uipi 机制。
+
+#### 代码阅读笔记
 
 **arch/x86/include/asm/uintr.h**
 
 定义了用户态中断直接相关的结构：
 
 - uintr_upid：与 intel 手册中 UPID 定义保持一致。UPID 是用户态中断的通信枢纽，由接收者配置，包含中断是否需要通知、通知的 APIC 目标、通知向量以及待处理的中断请求位。
-- uintr_upid_ctx：uintr_upid 的上下文信息，包含双向链表指针、接受方 Task 指针、引用计数、活跃标记 receiver_active、进程是否在内核中阻塞导致用户态中断需要等待 waiting
+- uintr_upid_ctx：uintr_upid 的上下文信息，包含双向链表指针、接受方 Task 指针、引用计数、活跃标记 receiver_active、进程是否在内核中阻塞导致用户态中断需要等待 waiting、等待的代价由谁承担 waiting_cost。
+  - 如果创建时指定 UPID_WAITING_COST_SENDER，则当接收者被交换出 CPU，发送者执行 SENDUIPI 会返回一个错误。
+  - 如果创建时指定 UPID_WAITING_COST_RECEIVER，则当接收者被交换出 CPU，发送者执行 SENDUIPI 会导致接受者被唤醒。
 - uintr_uitt_entry：与 intel 手册中 UITTE 保持一致，是 UITT 中的表项，描述一个中断发起行为。包含中断向量（64种取值，对应 UPID 中的 64 个请求位）、UPID 地址以及有效位。
 - uintr_uitt_ctx：UITT 表结构，需要互斥访问，包含互斥锁、uintr_uitt_entry 指针、引用计数、每一个表项对应的 uintr_upid_ctx 指针以及表项占用位图 uitt_mask。
 
@@ -25,11 +33,11 @@
 
 内存管理：
 
-实现了 check_upid_ref、put_upid_ref、get_upid_ref、put_uitt_ref、check_uitt_ref、get_uitt_ref 等 UPID 和 UITT 引用计数管理函数。实际上整个文件中诸多代码都是为了正确实现引用计数的管理，下不再赘述。
-
-alloc_upid 和 free_upid 函数实现了 UPID 的分配和释放，始终将 uintr_upid 包装在 uintr_upid_ctx 中。初始时引用计数为 1，task 指向 current，receiver_active 为 true（将始终为 true，直到 uintr_free 被调用），
+alloc_upid 和 free_upid 函数实现了 UPID 的分配和释放，始终将 uintr_upid 包装在 uintr_upid_ctx 中。初始时引用计数为 1，task 指向 current，receiver_active 为 true（将始终为 true，直到 uintr_free 被调用），waiting 为 false。
 
 相应地，alloc_uitt 和 free_uitt 实现了 UITT 的分配和释放，UITT 同样以 uintr_uitt_ctx 为管理单元，其中只需要特殊处理锁的初始化和释放。
+
+实现了 check_upid_ref、put_upid_ref、get_upid_ref、put_uitt_ref、check_uitt_ref、get_uitt_ref 等 UPID 和 UITT 引用计数管理函数。实际上整个文件中诸多代码都是为了正确实现引用计数的管理，下不再赘述。
 
 APIC 相关：
 
@@ -64,9 +72,9 @@ APIC 相关：
 系统调用：
 
 - sys_uintr_ipi_fd：返回一个文件描述符 uipi_fd，其中包含当前进程的 uitt_ctx，可以在用户进程间传递。该文件描述符绑定到操作 uipifd_fops。uipifd_open 中，如果 mm->context.uitt_ctx 为空，将其更新为 file->private_data（系统调用创建文件描述符时，会读取 mm->context.uitt_ctx 作为 file->private_data）。uipifd_ioctl 支持的操作只有 UIPI_SET_TARGET_TABLE，即依据文件描述符 private_data 设置当前进程的 UITT，并调用 uintr_set_sender_msrs。
-- sys_uintr_vector_fd：注册自身想要处理的中断向量并返回文件描述符 uvecfd，接受者需要将 uvecfd 传递给发送者使用，uvecfd 中包含中断向量值和接收者 UPID 地址（通过 private_data 实现）。
+- sys_uintr_vector_fd：注册自身想要处理的中断向量并返回文件描述符 uvecfd，接受者需要将 uvecfd 传递给发送者使用，uvecfd 中包含中断向量值和接收者 UPID 地址（通过 private_data 指向 uvecfd_ctx 实现）。
 - sys_uintr_register_sender：接受一个 uvecfd，注册成为面向对应接受者、使用相应中断向量的发送者。要成为发送者，如果事先没有初始化 UITT（UITT 每个 task 独有），需要申请内存并初始化 UITT（init_uitt_ctx）。注册时，将一个新的表项写入 UITT，并调用 uintr_set_sender_msrs 更新 MSR 值。该调用返回 UITTE 的下标，可以用于执行 `SENDUIPI <uipi_index>`。
-- sys_uintr_unregister_sender：sys_uintr_register_sender 的反向操作，但不会在 UITT 为空时释放内存，因为？？？，内存释放会被推迟到 MM 退出时。
+- sys_uintr_unregister_sender：sys_uintr_register_sender 的反向操作，但不会在 UITT 为空时释放内存，因为其他 task 可能共享这一 UITT（但无法验证），此时必须保持共享关系，内存释放会被推迟到 MM 退出时。
 - sys_uintr_register_self：将自身注册为中断向量 vector 的发送者和接受者，不返回文件描述符。
 - sys_uintr_register_handler：do_uintr_register_handler 会通过更新 MSR 寄存器的值注册 handler，同时将 UPID 中的通知向量设置为 UINTR_NOTIFICATION_VECTOR，通知目标设置为 smp_processor_id() 的返回值。更新 MSR 寄存器时，handler 地址被写入 MSR_IA32_UINTR_HANDLER，UPID 地址被写入 MSR_IA32_UINTR_PD，OS_ABI_REDZONE 被写入 MSR_IA32_UINTR_STACKADJUST，MSR_IA32_UINTR_MISC 的高 32 与 相或？？？。
 - sys_uintr_unregister_handler：sys_uintr_register_handler 的反向操作，清除 MSR 寄存器的值。
