@@ -1,0 +1,22 @@
+# Build outputs - only!
+*.[oa]
+*.mod
+*.mod.[co]
+*.cell
+*.cmd
+*.bin
+*.gcno
+*.gcda
+.tmp_versions
+*.dtb
+*.dtb.S
+*.dtb.*.tmp
+*.8
+*.o.d
+.cache.mk
+Module.symvers
+modules.order
+driver/jailhouse.ko
+tools/jailhouse
+*.s
+.vscode
