@@ -12,7 +12,7 @@ const CHUNK_SIZE: usize = 256;
 
 #[cfg(not(feature = "rvm"))]
 pub fn sys_write(fd: usize, buf: UserInPtr<u8>, len: usize) -> isize {
-    println!("sys_write not rvm");
+    // println!("sys_write not rvm");
     match fd {
         FD_STDOUT | FD_STDERR => {
             let mut count = 0;

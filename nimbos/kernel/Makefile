@@ -2,7 +2,7 @@
 ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
-RVM ?= on
+RVM ?= off
 ACCEL ?= on
 UINTR ?= on
 
@@ -28,6 +28,7 @@ make_args := ARCH=$(ARCH) PLATFORM=$(PLATFORM) MODE=$(MODE) LOG=$(LOG)
 target := ../targets/$(ARCH).json
 kernel_elf := target/$(ARCH)/$(MODE)/nimbos
 kernel_bin := $(kernel_elf).bin
+kernel_asm := $(kernel_elf).asm
 
 # Cargo features and build args
 features := platform-$(PLATFORM)
@@ -44,7 +45,7 @@ endif
 # Binutils
 OBJDUMP := rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
 OBJCOPY := rust-objcopy --binary-architecture=$(ARCH)
-GDB := gdb-multiarch
+GDB := gdb
 
 # QEMU
 ifeq ($(UINTR), on)
@@ -78,7 +79,7 @@ else ifeq ($(ARCH), aarch64)
 endif
 
 # GDB
-GDB := gdb-multiarch
+GDB := gdb
 
 build: $(kernel_bin)
 
@@ -88,7 +89,9 @@ env:
 	rustup component add llvm-tools-preview
 
 $(kernel_bin): kernel
-	@$(OBJCOPY) $(kernel_elf) --strip-all -O binary $@
+	# @$(OBJCOPY) $(kernel_elf) --strip-all -O binary $@
+	$(OBJCOPY) $(kernel_elf) -O binary $@
+	$(OBJDUMP) $(kernel_elf) > $(kernel_asm)
 
 user:
 	@cd ../user && make build
@@ -117,7 +120,8 @@ justrun:
 
 debug: build
 	$(qemu) $(qemu_args) -s -S &
-	sleep 1
+
+gdb:
 	$(GDB) $(kernel_elf) -ex 'target remote localhost:1234'
 
 scp:

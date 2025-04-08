@@ -214,7 +214,7 @@ impl Task {
         self.exit_code.store(exit_code, Ordering::SeqCst)
     }
 
-    pub(super) const fn context(&self) -> &TaskLockedCell<TaskContext> {
+    pub const fn context(&self) -> &TaskLockedCell<TaskContext> {
         &self.ctx
     }
 

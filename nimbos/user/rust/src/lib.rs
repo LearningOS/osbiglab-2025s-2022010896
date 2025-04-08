@@ -108,3 +108,11 @@ pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> usize {
     let newsp = unsafe { THREAD_STACKS[thread_id].as_ptr_range().end as usize };
     sys_clone(entry, arg, newsp)
 }
+
+pub fn uintr_register_sender(upid_addr: usize) -> isize {
+    sys_uintr_register_sender(upid_addr)
+}
+
+pub fn uintr_register_handler(handler: usize) -> usize {
+    sys_uintr_register_handler(handler)
+}

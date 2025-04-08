@@ -6,6 +6,10 @@ use super::gdt::{UCODE64_SELECTOR, UDATA_SELECTOR};
 use crate::arch::instructions;
 use crate::mm::{PhysAddr, VirtAddr};
 use crate::percpu::PerCpu;
+use crate::syscall::uintr::{UintrUittCtx, UintrUpidCtx};
+use alloc::sync::Arc;
+use crate::sync::Mutex;
+use alloc::boxed::Box;
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
@@ -132,11 +136,26 @@ pub struct TaskContext {
     pub rsp: u64,
     pub fs_base: u64,
     pub cr3: u64,
+    // pub uitt: Option<Arc<Mutex<UintrUittCtx>>>,
+    pub uitt: Option<Arc<Mutex<UintrUittCtx>>>,
+    pub uitt_activated: bool,
+    pub upid_activated: bool,
+    pub uintr_upid_ctx: Option<Box<UintrUpidCtx>>,
 }
 
 impl TaskContext {
     pub const fn default() -> Self {
-        unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
+        // unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
+        Self {
+            kstack_top: VirtAddr::new(0),
+            rsp: 0,
+            fs_base: 0,
+            cr3: 0,
+            uitt: None,  // 关键修复：确保 Option<Arc> 是 None 而不是非法值
+            uitt_activated: false,
+            upid_activated: false,
+            uintr_upid_ctx: None,
+        }
     }
 
     pub fn init(

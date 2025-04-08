@@ -14,6 +14,8 @@ pub const SYSCALL_EXEC: usize = 59;
 pub const SYSCALL_EXIT: usize = 60;
 pub const SYSCALL_WAITPID: usize = 61;
 pub const SYSCALL_GET_TIME: usize = 96;
+pub const SYSCALL_UINTR_REGISTER_SENDER: usize = 333;
+pub const SYSCALL_UINTR_REGISTER_HANDLER: usize = 334;
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
     syscall(
@@ -58,3 +60,13 @@ pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
 pub fn sys_nanosleep(req: &TimeSpec) -> isize {
     syscall(SYSCALL_NANOSLEEP, [req as *const _ as usize, 0, 0])
 }
+
+pub fn sys_uintr_register_sender(uipd_addr: usize) -> isize {
+    syscall(SYSCALL_UINTR_REGISTER_SENDER, [uipd_addr, 0 ,0])
+}
+
+pub fn sys_uintr_register_handler(handler: usize) -> usize {
+    syscall(SYSCALL_UINTR_REGISTER_HANDLER, [handler, 0 ,0]) as usize
+}
+
+

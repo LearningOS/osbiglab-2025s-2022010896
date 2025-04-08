@@ -138,7 +138,7 @@ impl<T> TaskLockedCell<T> {
     }
 }
 
-pub(super) static TASK_MANAGER: LazyInit<SpinNoIrqLock<TaskManager<SimpleScheduler>>> =
+pub static TASK_MANAGER: LazyInit<SpinNoIrqLock<TaskManager<SimpleScheduler>>> =
     LazyInit::new();
 
 pub(super) fn init() {

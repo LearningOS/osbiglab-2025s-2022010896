@@ -10,10 +10,13 @@ const SYSCALL_EXIT: usize = 60;
 const SYSCALL_WAITPID: usize = 61;
 const SYSCALL_GET_TIME_MS: usize = 96;
 const SYSCALL_CLOCK_GETTIME: usize = 228;
+const SYSCALL_UINTR_REGISTER_SENDER: usize = 333;
+const SYSCALL_UINTR_REGISTER_HANDLER: usize = 334;
 
 mod fs;
 mod task;
 mod time;
+pub mod uintr;
 
 #[cfg(feature = "rvm")]
 use crate::scf::syscall::*;
@@ -23,6 +26,7 @@ use self::fs::*;
 
 use self::task::*;
 use self::time::*;
+use self::uintr::*;
 use crate::arch::{instructions, TrapFrame};
 
 pub fn syscall(
@@ -33,7 +37,7 @@ pub fn syscall(
     arg2: usize,
 ) -> isize {
     instructions::enable_irqs();
-    warn!(
+    debug!(
         "syscall {} enter <= ({:#x}, {:#x}, {:#x})",
         syscall_id, arg0, arg1, arg2
     );
@@ -50,6 +54,8 @@ pub fn syscall(
         SYSCALL_WAITPID => sys_waitpid(arg0 as isize, arg1.into()),
         SYSCALL_GET_TIME_MS => sys_get_time_ms(),
         SYSCALL_CLOCK_GETTIME => sys_clock_gettime(arg0, arg1.into()),
+        SYSCALL_UINTR_REGISTER_SENDER => sys_uintr_register_sender(arg0 as _),
+        SYSCALL_UINTR_REGISTER_HANDLER => sys_uintr_register_handler(arg0 as _) as _,
         _ => {
             println!("Unsupported syscall_id: {}", syscall_id);
             crate::task::CurrentTask::get().exit(-1);
