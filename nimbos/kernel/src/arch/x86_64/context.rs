@@ -121,6 +121,16 @@ impl TrapFrame {
 #[repr(C)]
 #[derive(Debug, Default)]
 struct ContextSwitchFrame {
+    msr98a: u64,
+    msr98a_: u64,
+    msr989: u64,
+    msr989_: u64,
+    msr988: u64,
+    msr988_: u64,
+    msr987: u64,
+    msr987_: u64,
+    msr986: u64,
+    msr986_: u64,
     r15: u64,
     r14: u64,
     r13: u64,
@@ -136,7 +146,6 @@ pub struct TaskContext {
     pub rsp: u64,
     pub fs_base: u64,
     pub cr3: u64,
-    // pub uitt: Option<Arc<Mutex<UintrUittCtx>>>,
     pub uitt: Option<Arc<Mutex<UintrUittCtx>>>,
     pub uitt_activated: bool,
     pub upid_activated: bool,
@@ -178,6 +187,9 @@ impl TaskContext {
         }
         self.kstack_top = kstack_top;
         self.cr3 = page_table_root.as_usize() as u64;
+        self.uitt_activated = false;
+        self.upid_activated = false;
+        self.uintr_upid_ctx = None;
     }
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
@@ -203,9 +215,61 @@ unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64)
         push    r13
         push    r14
         push    r15
+
+        mov     ecx, 0x00000986
+        rdmsr
+        push    rdx
+        push    rax
+
+        mov     ecx, 0x00000987
+        rdmsr
+        push    rdx
+        push    rax
+
+        mov     ecx, 0x00000988
+        rdmsr
+        push    rdx
+        push    rax
+
+        mov     ecx, 0x00000989
+        rdmsr
+        push    rdx
+        push    rax
+
+        mov     ecx, 0x0000098a
+        rdmsr
+        push    rdx
+        push    rax
+
         mov     [rdi], rsp
 
         mov     rsp, [rsi]
+
+        mov     ecx, 0x0000098a
+        pop     rax
+        pop     rdx
+        wrmsr
+        
+        mov     ecx, 0x00000989
+        pop     rax
+        pop     rdx
+        wrmsr
+        
+        mov     ecx, 0x00000988
+        pop     rax
+        pop     rdx
+        wrmsr
+
+        mov     ecx, 0x00000987
+        pop     rax
+        pop     rdx
+        wrmsr
+
+        mov     ecx, 0x00000986
+        pop     rax
+        pop     rdx
+        wrmsr
+
         pop     r15
         pop     r14
         pop     r13

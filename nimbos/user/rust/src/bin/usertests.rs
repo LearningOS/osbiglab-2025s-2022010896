@@ -11,6 +11,7 @@ static TESTS: &[&str] = &[
     "forktest2\0",
     "forktest_simple\0",
     "hello_world\0",
+    "hello_world2\0",
     "matrix\0",
     "sleep\0",
     "sleep_simple\0",

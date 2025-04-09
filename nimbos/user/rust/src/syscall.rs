@@ -61,12 +61,10 @@ pub fn sys_nanosleep(req: &TimeSpec) -> isize {
     syscall(SYSCALL_NANOSLEEP, [req as *const _ as usize, 0, 0])
 }
 
-pub fn sys_uintr_register_sender(uipd_addr: usize) -> isize {
-    syscall(SYSCALL_UINTR_REGISTER_SENDER, [uipd_addr, 0 ,0])
+pub fn sys_uintr_register_sender(uipd_addr: usize, uvec: u8) -> isize {
+    syscall(SYSCALL_UINTR_REGISTER_SENDER, [uipd_addr, uvec.into() ,0])
 }
 
 pub fn sys_uintr_register_handler(handler: usize) -> usize {
     syscall(SYSCALL_UINTR_REGISTER_HANDLER, [handler, 0 ,0]) as usize
 }
-
-

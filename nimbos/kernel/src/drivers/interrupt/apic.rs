@@ -58,7 +58,7 @@ pub fn init() {
         .timer_divide(TimerDivide::Div256) // divide by 1
         .timer_initial((1_000_000_000 / TICKS_PER_SEC) as u32) // FIXME: need to calibrate
         .set_xapic_base(base_vaddr.as_usize() as u64)
-        .ipi_destination_mode(x2apic::lapic::IpiDestMode::Logical) // Use logical for now
+        .ipi_destination_mode(x2apic::lapic::IpiDestMode::Physical) // Use logical for now
         .build()
         .unwrap();
     unsafe {

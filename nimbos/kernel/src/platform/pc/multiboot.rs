@@ -13,7 +13,7 @@ const CR0: u64 = Cr0Flags::PROTECTED_MODE_ENABLE.bits()
     | Cr0Flags::NUMERIC_ERROR.bits()
     | Cr0Flags::WRITE_PROTECT.bits()
     | Cr0Flags::PAGING.bits();
-const CR4: u64 = Cr4Flags::PHYSICAL_ADDRESS_EXTENSION.bits() | Cr4Flags::PAGE_GLOBAL.bits();
+const CR4: u64 = Cr4Flags::PHYSICAL_ADDRESS_EXTENSION.bits() | Cr4Flags::PAGE_GLOBAL.bits() | Cr4Flags::OSXSAVE.bits();
 const EFER: u64 = EferFlags::LONG_MODE_ENABLE.bits() | EferFlags::NO_EXECUTE_ENABLE.bits();
 
 global_asm!(

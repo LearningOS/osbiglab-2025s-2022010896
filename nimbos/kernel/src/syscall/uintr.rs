@@ -9,13 +9,20 @@ use core::arch::asm;
 use crate::drivers::interrupt::{LOCAL_APIC, register_handler, IrqHandlerResult};
 
 pub const UINTR_UITT_MASK_WORDS: usize = (UINTR_MAX_UITT_NR + 63) / 64;
-const MSR_IA32_UINTR_TT: u32 = 0x98a;
-const MSR_IA32_UINTR_MISC: u32 = 0x988;
+
+// TODO: move this to arch
 const MSR_IA32_UINTR_HANDLER: u32 = 0x986;
-const MSR_IA32_UINTR_PD: u32 = 0x989;
-const OS_ABI_REDZONE: u64 = 0;
-const UINTR_NOTIFICATION_VECTOR: u64 = 0xec;
 const MSR_IA32_UINTR_STACKADJUST: u32 = 0x987;
+const MSR_IA32_UINTR_MISC: u32 = 0x988;
+const MSR_IA32_UINTR_PD: u32 = 0x989;
+const MSR_IA32_UINTR_TT: u32 = 0x98a;
+
+const OS_ABI_REDZONE: u64 = 0;
+pub const UINTR_NOTIFICATION_VECTOR: u8 = 0xec;
+pub const EFAULT: usize = 14;
+pub const EBUSY: isize = 16;
+pub const EINVAL: isize = 22;
+pub const ENOSPC: isize = 28;
 
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
@@ -30,15 +37,15 @@ pub struct UintrNc {
 #[repr(C, align(64))]
 #[derive(Debug)]
 pub struct UintrUpid {
-    nc: UintrNc,
-    puir: u64,
+    pub nc: UintrNc,
+    pub puir: u64,
 }
 
 #[derive(Debug)]
 pub struct UintrUpidCtx {
     // task: Arc<Task>, // Receiver task
     // uvec_mask: u64, // track registered vectors per bit
-    upid: Box<UintrUpid>,
+    pub upid: Box<UintrUpid>,
     // receiver_active: bool, // Flag for UPID being mapped to a receiver
     // waiting: bool, // Flag for UPID blocked in the kernel
     // waiting_cost: u32, // Flags for who pays the waiting cost
@@ -112,7 +119,7 @@ impl<const N: usize, const M: usize> BitSet<N, M> {
                 let bit_idx = word.trailing_ones() as usize;
                 let index = word_idx * 64 + bit_idx;
                 if index < N {
-                    return Some(index);
+                    return Some(index)
                 }
             }
         }
@@ -205,9 +212,13 @@ fn uintr_set_sender_msrs(ctx: &mut TaskContext) {
     ctx.uitt_activated = true;
 }
 
-fn do_uintr_register_sender(uvec: u64, upid: *mut UintrUpid) -> isize {
+fn do_uintr_register_sender(uvec: usize, upid: *mut UintrUpid) -> isize {
+    if upid.is_null() {
+        warn!("Invalid UPID address");
+        return -EINVAL;
+    }
+
     uintr_init_sender();
-    println!("{:x}", do_uintr_register_sender as usize);
     warn!("Registering sender: uvec={:#x}, upid={:#x}", uvec, upid as usize);
     let current_task = CurrentTask::get().0;
     let ctx = unsafe{&mut *current_task.context().as_ptr()};
@@ -230,14 +241,14 @@ fn do_uintr_register_sender(uvec: u64, upid: *mut UintrUpid) -> isize {
         entry as isize
     } else {
         warn!("No available UITT entry");
-        -1
+        -ENOSPC
     }
 }
 
-pub fn sys_uintr_register_sender(upid_addr: u64) -> isize {
+pub fn sys_uintr_register_sender(upid_addr: u64, uvec: usize) -> isize {
     let _manager = TASK_MANAGER.lock();
     warn!("sys_uintr_register_sender called");
-    do_uintr_register_sender(0, upid_addr as *mut UintrUpid)
+    do_uintr_register_sender(uvec, upid_addr as *mut UintrUpid)
 }
 
 pub fn get_apic_id() -> u32 {
@@ -248,6 +259,12 @@ fn do_uintr_register_handler(handler: u64) -> u64 {
     // TODO: check validity
     let current_task = CurrentTask::get().0;
     let ctx = unsafe{&mut *current_task.context().as_ptr()};
+
+    if ctx.upid_activated {
+        warn!("UPID already activated");
+        // return -EBUSY as u64
+        return 0
+    }
 
     if let None = ctx.uintr_upid_ctx {
         ctx.uintr_upid_ctx = Some(Box::new(UintrUpidCtx {
@@ -346,16 +363,20 @@ fn do_uintr_register_handler(handler: u64) -> u64 {
     upid_addr
 }
 
-fn my_kernel_handler() {
-    warn!("Kernel handler called");
-}
+// fn my_kernel_handler() {
+//     warn!("Kernel handler called");
+// }
 
 pub fn sys_uintr_register_handler(handler: u64) -> u64 {
-    register_handler(UINTR_NOTIFICATION_VECTOR as usize, || {
-        my_kernel_handler();
-        IrqHandlerResult::Reschedule
-    });
+    // register_handler(UINTR_NOTIFICATION_VECTOR as usize, || {
+    //     my_kernel_handler();
+    //     IrqHandlerResult::Reschedule
+    // });
     let _manager = TASK_MANAGER.lock();
     warn!("sys_uintr_register_handler called");
+    if handler == 0 {
+        // return -EFAULT as u64;
+        return 0
+    }
     do_uintr_register_handler(handler)
 }

@@ -54,7 +54,7 @@ pub fn syscall(
         SYSCALL_WAITPID => sys_waitpid(arg0 as isize, arg1.into()),
         SYSCALL_GET_TIME_MS => sys_get_time_ms(),
         SYSCALL_CLOCK_GETTIME => sys_clock_gettime(arg0, arg1.into()),
-        SYSCALL_UINTR_REGISTER_SENDER => sys_uintr_register_sender(arg0 as _),
+        SYSCALL_UINTR_REGISTER_SENDER => sys_uintr_register_sender(arg0 as _, arg1 as _),
         SYSCALL_UINTR_REGISTER_HANDLER => sys_uintr_register_handler(arg0 as _) as _,
         _ => {
             println!("Unsupported syscall_id: {}", syscall_id);
