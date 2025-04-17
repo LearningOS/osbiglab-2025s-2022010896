@@ -248,7 +248,7 @@ void helper_wrmsr(CPUX86State *env)
         env->uintr_pd = val;
         break;
     case MSR_IA32_UINTR_TT:
-        qemu_log("write tt %lx  core:%d\n", val,get_apic_id(cpu_get_current_apic()));
+        // qemu_log("write tt %lx  core:%d\n", val,get_apic_id(cpu_get_current_apic()));
         env->uintr_tt = val;
         break;
     case MSR_MTRRphysBase(0):

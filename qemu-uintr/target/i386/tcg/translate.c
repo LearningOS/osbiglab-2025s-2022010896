@@ -7732,7 +7732,9 @@ static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
             break;
         case 0xed:
             if (prefixes & PREFIX_REPZ){ /* TESTUI */
-                qemu_log("qemu:caught 0xf30f01ed TESTUI\n"); // 改
+                gen_helper_testui(cpu_env);
+                set_cc_op(s, CC_OP_EFLAGS);
+                // qemu_log("qemu:caught 0xf30f01ed TESTUI\n"); // 改
             }
             break;
         case 0xef: /* wrpkru */

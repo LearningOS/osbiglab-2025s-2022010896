@@ -887,12 +887,20 @@ static bool uif_enable(CPUX86State *env){
 }
 
 void helper_stui(CPUX86State *env){
-    qemu_log("stui core: %d\n", get_apic_id(cpu_get_current_apic()));
+    // qemu_log("stui core: %d\n", get_apic_id(cpu_get_current_apic()));
     switch_uif(env, true);
 }
 
+void helper_testui(CPUX86State *env){
+    if(uif_enable(env)){
+        cpu_load_eflags(env, CC_C, CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    }else{
+        cpu_load_eflags(env, 0, CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    }
+}
+
 void helper_clui(CPUX86State *env){
-    qemu_log("clui core: %d\n", get_apic_id(cpu_get_current_apic()));
+    // qemu_log("clui core: %d\n", get_apic_id(cpu_get_current_apic()));
     switch_uif(env, false);
 }
 
