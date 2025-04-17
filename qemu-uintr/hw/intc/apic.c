@@ -216,6 +216,11 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
                              uint8_t delivery_mode, uint8_t vector_num,
                              uint8_t trigger_mode)
 {
+    // qemu_log("apic_bus_deliver: delivery_mode %d vector_num %d trigger_mode %d\n",
+            //   delivery_mode, vector_num, trigger_mode);
+    for (int i = 0; i < MAX_APIC_WORDS; i++) {
+        // qemu_log("apic_bus_deliver: deliver_bitmask[%d] %x\n", i, deliver_bitmask[i]);
+    }
     APICCommonState *apic_iter;
 
     switch (delivery_mode) {
@@ -472,7 +477,9 @@ static void apic_get_delivery_bitmask(uint32_t *deliver_bitmask,
         memset(deliver_bitmask, 0x00, MAX_APIC_WORDS * sizeof(uint32_t));
         for(i = 0; i < MAX_APICS; i++) {
             apic_iter = local_apics[i];
+            // qemu_log("apic_get_delivery_bitmask: i %d apic_iter %p\n", i, apic_iter);
             if (apic_iter) {
+                // qemu_log("--dest_mode %d log_dest %d\n", apic_iter->dest_mode, apic_iter->log_dest);
                 if (apic_iter->dest_mode == 0xf) {
                     if (dest & apic_iter->log_dest)
                         apic_set_bit(deliver_bitmask, i);
@@ -513,10 +520,14 @@ static void apic_deliver(DeviceState *dev, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
                          uint8_t trigger_mode) // delivery mode APIC_DM_FIXED  dest mode: 0 , trigger_mode  trigger: APIC_TRIGGER_EDGE
 {
+    // qemu_log("apic_deliver: dest %d dest_mode %d delivery_mode %d vector_num %d trigger_mode %d\n",
+            //   dest, dest_mode, delivery_mode, vector_num, trigger_mode);
+    // apic_deliver: dest 0 dest_mode 1 delivery_mode 0 vector_num 236 trigger_mode 0
     APICCommonState *s = APIC(dev);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
     int dest_shorthand = (s->icr[0] >> 18) & 3;
     APICCommonState *apic_iter;
+    // qemu_log("apic_deliver: dest_shorthand %d\n", dest_shorthand);
 
     switch (dest_shorthand) {
     case 0:
@@ -791,6 +802,7 @@ static void apic_mem_write(void *opaque, hwaddr addr, uint64_t val,
         apic_eoi(s);
         break;
     case 0x0d:
+        // qemu_log("apic_set_log_dest: %lu\n", val);
         s->log_dest = val >> 24;
         break;
     case 0x0e:
@@ -950,56 +962,57 @@ int get_apic_id(DeviceState *dev){
     return s->id;
 }
 
-static void apic_deliver2(uint8_t dest, uint8_t dest_mode,
-                         uint8_t delivery_mode, uint8_t vector_num,
-                         uint8_t trigger_mode) // delivery mode APIC_DM_FIXED  dest mode: 0 , trigger_mode  trigger: APIC_TRIGGER_EDGE
-{
-    APICCommonState *s = local_apics[dest];
-    uint32_t deliver_bitmask[MAX_APIC_WORDS];
-    int dest_shorthand = (s->icr[0] >> 18) & 3;
-    APICCommonState *apic_iter;
-    switch (dest_shorthand) {
-    case 0:
-        apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
-        break;
-    case 1:
-        memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
-        apic_set_bit(deliver_bitmask, s->id);
-        break;
-    case 2:
-        memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
-        break;
-    case 3:
-        memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
-        apic_reset_bit(deliver_bitmask, s->id);
-        break;
-    }
+// static void apic_deliver2(uint8_t dest, uint8_t dest_mode,
+//                          uint8_t delivery_mode, uint8_t vector_num,
+//                          uint8_t trigger_mode) // delivery mode APIC_DM_FIXED  dest mode: 0 , trigger_mode  trigger: APIC_TRIGGER_EDGE
+// {
+//     APICCommonState *s = local_apics[dest];
+//     uint32_t deliver_bitmask[MAX_APIC_WORDS];
+//     int dest_shorthand = (s->icr[0] >> 18) & 3;
+//     APICCommonState *apic_iter;
+//     switch (dest_shorthand) {
+//     case 0:
+//         apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
+//         break;
+//     case 1:
+//         memset(deliver_bitmask, 0x00, sizeof(deliver_bitmask));
+//         apic_set_bit(deliver_bitmask, s->id);
+//         break;
+//     case 2:
+//         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
+//         break;
+//     case 3:
+//         memset(deliver_bitmask, 0xff, sizeof(deliver_bitmask));
+//         apic_reset_bit(deliver_bitmask, s->id);
+//         break;
+//     }
 
-    switch (delivery_mode) {
-        case APIC_DM_INIT:
-            {
-                int trig_mode = (s->icr[0] >> 15) & 1;
-                int level = (s->icr[0] >> 14) & 1;
-                if (level == 0 && trig_mode == 1) {
-                    foreach_apic(apic_iter, deliver_bitmask,
-                                 apic_iter->arb_id = apic_iter->id );
-                    return;
-                }
-            }
-            break;
+//     switch (delivery_mode) {
+//         case APIC_DM_INIT:
+//             {
+//                 int trig_mode = (s->icr[0] >> 15) & 1;
+//                 int level = (s->icr[0] >> 14) & 1;
+//                 if (level == 0 && trig_mode == 1) {
+//                     foreach_apic(apic_iter, deliver_bitmask,
+//                                  apic_iter->arb_id = apic_iter->id );
+//                     return;
+//                 }
+//             }
+//             break;
 
-        case APIC_DM_SIPI:
-            foreach_apic(apic_iter, deliver_bitmask,
-                         apic_startup(apic_iter, vector_num) );
-            return;
-    }
+//         case APIC_DM_SIPI:
+//             foreach_apic(apic_iter, deliver_bitmask,
+//                          apic_startup(apic_iter, vector_num) );
+//             return;
+//     }
 
-    apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
-}
+//     apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
+// }
 
 void send_ipi(uint8_t dest, uint8_t nv){
     qemu_mutex_lock_iothread();
-    apic_deliver2(dest, 0 ,APIC_DM_FIXED, nv, APIC_TRIGGER_EDGE);
+    // apic_deliver2(dest, 0 ,APIC_DM_FIXED, nv, APIC_TRIGGER_EDGE);
+    apic_deliver_irq(dest, 0 ,APIC_DM_FIXED, nv, APIC_TRIGGER_EDGE);
     qemu_mutex_unlock_iothread();
 }
 
