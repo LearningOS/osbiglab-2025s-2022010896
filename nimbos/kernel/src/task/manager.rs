@@ -6,7 +6,8 @@ use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
 use crate::percpu::PerCpu;
 use crate::sync::{LazyInit, SpinNoIrqLock};
 use crate::drivers::interrupt::LOCAL_APIC;
-use crate::syscall::uintr::{UINTR_NOTIFICATION_VECTOR, get_apic_id};
+use crate::syscall::uintr::UINTR_NOTIFICATION_VECTOR;
+use crate::drivers::interrupt::apic::{get_apic_id, get_logical_dest};
 
 pub struct TaskManager<S: Scheduler> {
     scheduler: S,
@@ -42,12 +43,12 @@ impl<S: Scheduler> TaskManager<S> {
             (&mut *curr_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
         let current_task = CurrentTask::get().0;
-        let mut ctx = unsafe{&mut *current_task.context().as_ptr()};
+        let ctx = unsafe{&mut *current_task.context().as_ptr()};
         if let Some(upid_ctx) = &ctx.uintr_upid_ctx {
             if upid_ctx.as_ref().upid.puir != 0 {
-                warn!("Found pending uintr");
+                warn!("Found pending uintr, sending to {}", get_apic_id());
                 unsafe {
-                    LOCAL_APIC.as_mut().send_ipi(UINTR_NOTIFICATION_VECTOR, get_apic_id());
+                    LOCAL_APIC.as_mut().send_ipi(UINTR_NOTIFICATION_VECTOR, get_logical_dest());
                 }
             }
         }

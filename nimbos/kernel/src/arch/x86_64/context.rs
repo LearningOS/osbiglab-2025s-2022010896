@@ -122,15 +122,11 @@ impl TrapFrame {
 #[derive(Debug, Default)]
 struct ContextSwitchFrame {
     msr98a: u64,
-    msr98a_: u64,
     msr989: u64,
-    msr989_: u64,
     msr988: u64,
-    msr988_: u64,
     msr987: u64,
-    msr987_: u64,
     msr986: u64,
-    msr986_: u64,
+    uif: u64,
     r15: u64,
     r14: u64,
     r13: u64,
@@ -215,60 +211,81 @@ unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64)
         push    r13
         push    r14
         push    r15
+        
+        // Save UIF (TESTUI -> CF, then store CF in AL and push)
+        testui
+        setc    al
+        push    rax         // Push 8 bytes (but only AL is used)
 
+        // Save MSRs (5 x 64-bit = 40 bytes total)
+        sub     rsp, 40     // Allocate space for MSRs (5x8 bytes)
         mov     ecx, 0x00000986
         rdmsr
-        push    rdx
-        push    rax
-
+        mov     [rsp + 32], eax    // Store EAX (low 32 bits)
+        mov     [rsp + 36], edx    // Store EDX (high 32 bits)
+        
         mov     ecx, 0x00000987
         rdmsr
-        push    rdx
-        push    rax
-
+        mov     [rsp + 24], eax
+        mov     [rsp + 28], edx
+        
         mov     ecx, 0x00000988
         rdmsr
-        push    rdx
-        push    rax
-
+        mov     [rsp + 16], eax
+        mov     [rsp + 20], edx
+        
         mov     ecx, 0x00000989
         rdmsr
-        push    rdx
-        push    rax
-
+        mov     [rsp + 8], eax
+        mov     [rsp + 12], edx
+        
         mov     ecx, 0x0000098a
         rdmsr
-        push    rdx
-        push    rax
+        mov     [rsp], eax
+        mov     [rsp + 4], edx
 
+        // Switch stacks
         mov     [rdi], rsp
 
         mov     rsp, [rsi]
 
+        // Restore MSRs (reverse order)
         mov     ecx, 0x0000098a
-        pop     rax
-        pop     rdx
+        mov     eax, [rsp]
+        mov     edx, [rsp + 4]
         wrmsr
         
         mov     ecx, 0x00000989
-        pop     rax
-        pop     rdx
+        mov     eax, [rsp + 8]
+        mov     edx, [rsp + 12]
         wrmsr
         
         mov     ecx, 0x00000988
-        pop     rax
-        pop     rdx
+        mov     eax, [rsp + 16]
+        mov     edx, [rsp + 20]
         wrmsr
-
+        
         mov     ecx, 0x00000987
-        pop     rax
-        pop     rdx
+        mov     eax, [rsp + 24]
+        mov     edx, [rsp + 28]
+        wrmsr
+        
+        mov     ecx, 0x00000986
+        mov     eax, [rsp + 32]
+        mov     edx, [rsp + 36]
         wrmsr
 
-        mov     ecx, 0x00000986
-        pop     rax
-        pop     rdx
-        wrmsr
+        add     rsp, 40     // Free MSR storage
+
+        // Restore UIF (pop saved CF, then set UIF)
+        pop     rax         // AL = saved UIF (CF)
+        test    al, al
+        jz      1f
+        stui
+        jmp     2f
+    1:
+        clui
+    2:
 
         pop     r15
         pop     r14

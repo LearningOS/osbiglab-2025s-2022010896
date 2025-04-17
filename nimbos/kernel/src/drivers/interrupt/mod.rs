@@ -1,6 +1,6 @@
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
-        mod apic;
+        pub mod apic;
         use apic as imp;
         mod i8259_pic;
         pub use apic::{init_local_apic_ap, LOCAL_APIC};

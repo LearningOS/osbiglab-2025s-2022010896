@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use crate::arch::TaskContext;
 use core::arch::asm;
 use crate::drivers::interrupt::{LOCAL_APIC, register_handler, IrqHandlerResult};
+use crate::drivers::interrupt::apic::{get_apic_id, get_logical_dest};
 
 pub const UINTR_UITT_MASK_WORDS: usize = (UINTR_MAX_UITT_NR + 63) / 64;
 
@@ -251,10 +252,6 @@ pub fn sys_uintr_register_sender(upid_addr: u64, uvec: usize) -> isize {
     do_uintr_register_sender(uvec, upid_addr as *mut UintrUpid)
 }
 
-pub fn get_apic_id() -> u32 {
-    unsafe { LOCAL_APIC.as_ref().id() }
-}
-
 fn do_uintr_register_handler(handler: u64) -> u64 {
     // TODO: check validity
     let current_task = CurrentTask::get().0;
@@ -288,7 +285,7 @@ fn do_uintr_register_handler(handler: u64) -> u64 {
     warn!("Registering handler: {:#x}", handler);
     let upid: &mut UintrUpid = ctx.uintr_upid_ctx.as_mut().unwrap().upid.as_mut();
     upid.nc.nv = UINTR_NOTIFICATION_VECTOR as u8;
-    upid.nc.ndst = get_apic_id();
+    upid.nc.ndst = get_apic_id() << 8;
 
     let upid_addr = (&*ctx.uintr_upid_ctx.as_ref().unwrap().upid) as *const UintrUpid as u64;
 

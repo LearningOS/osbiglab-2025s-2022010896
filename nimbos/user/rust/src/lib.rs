@@ -140,6 +140,31 @@ pub unsafe fn senduipi(upid_addr: u64) {
     );
 }
 
+// 定义中断帧结构体，用于描述栈上保存的寄存器布局
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct TrapFrame {
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rdx: u64,
+    pub rcx: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub rbx: u64,
+    pub rbp: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+    pub rax: u64,
+    pub xsave_area: u64,  // 设置为 NULL
+    pub pad: u64,         // 填充对齐
+    pub uirrv: u64,       // 中断请求值
+    // 注意：RIP 和 RSP 由硬件自动保存
+}
+
 #[macro_export]
 macro_rules! make_uintr_entry {
     ($name:ident, $handler:ident) => {

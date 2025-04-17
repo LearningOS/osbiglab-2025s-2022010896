@@ -227,6 +227,7 @@ impl Task {
 }
 
 fn task_entry() -> ! {
+    warn!("task entry");
     // release the lock that was implicitly held across the reschedule
     unsafe { TASK_MANAGER.force_unlock() };
     instructions::enable_irqs();
