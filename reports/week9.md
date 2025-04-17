@@ -111,3 +111,47 @@ unsafe {
 
 #### 跨域 uintr
 
+Linux 目前的实现不向用户程序暴露 UPID 地址，需要添加 ioctl 接口，允许用户程序获取 UPID 地址。
+
+```c
+#define UINTR_GET_UPID_PHYS_ADDR _IOR('u', 1, u64)
+
+static long uintrfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    struct uintrfd_ctx *uintrfd_ctx = file->private_data;
+	u64 __user *upid_addr = (u64 __user *)arg;  // 用户空间指针
+	u64 phys_addr;
+	
+    switch (cmd) {
+    case UINTR_GET_UPID_PHYS_ADDR: {
+        if (!uintrfd_ctx->r_info || !uintrfd_ctx->r_info->upid_ctx)
+            return -EINVAL;  // 检查数据结构是否有效
+            
+        phys_addr = uintrfd_ctx->r_info->upid_ctx->upid;
+        if (copy_to_user(upid_addr, &phys_addr, sizeof(phys_addr)))
+            return -EFAULT;  // 拷贝失败
+        return 0;
+    }
+    default:
+        return -ENOTTY;  // 未知命令
+    }
+}
+```
+
+用户程序现在可以获得 UPID 的物理地址了:
+
+```bash
+ubuntu@ubuntu:~/sample$ ./uipi_sample 
+UPID Physical Address: 0xffff9a9f45fe9d00
+Receiver enabled interrupts
+Sending IPI from sender thread
+uitte index:0
+uitt addr: 0xffff9a9f45fb4001  upid addr: 0xffff9a9f45fe9d00
+senduipi core: 2 uitte index:0  dist core: 0 ifsend: 1, nv: 236
+receive, cur core:0
+perv: 0 | id:0 not in user mode return
+receive, cur core:0
+        XXXuiret 
+-- User Interrupt handler --
+Success
+```
