@@ -18,7 +18,7 @@ build:
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 
-insmod: rmmod
+insmod:
 	sudo insmod driver/$(module).ko
 	sudo chmod 666 /dev/nimbos
 

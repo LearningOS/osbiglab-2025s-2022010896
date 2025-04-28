@@ -18,6 +18,7 @@ enum scf_opcode {
     IPC_OP_WRITE = 2,
     IPC_OP_OPEN = 3,
     IPC_OP_CLOSE = 4,
+    ICP_OP_INIT_UINTR = 5,
     IPC_OP_UNKNOWN = 0xff,
 };
 

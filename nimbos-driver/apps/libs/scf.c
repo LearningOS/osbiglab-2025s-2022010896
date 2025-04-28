@@ -23,15 +23,15 @@ int nimbos_setup_syscall_buffers(int nimbos_fd)
     if (syscall_queue_buf_base == MAP_FAILED) {
         return -ENOMEM;
     }
-    // printf("%p %p\n", syscall_data_buf_base, syscall_queue_buf_base);
+    printf("%p %p\n", syscall_data_buf_base, syscall_queue_buf_base);
 
     struct syscall_queue_buffer_metadata *meta = syscall_queue_buf_base;
     struct scf_descriptor *desc;
     uint16_t *req_ring, *rsp_ring;
     uint16_t capacity = meta->capacity;
 
-    // printf("%x %d %d %d %d %d\n", meta->magic, meta->capacity, meta->lock,
-    // meta->req_index, meta->rsp_index);
+    printf("%x %d %d %d %d\n", meta->magic, meta->capacity, meta->lock,
+    meta->req_index, meta->rsp_index);
 
     if (meta->magic != SYSCALL_QUEUE_BUFFER_MAGIC) {
         return -EINVAL;

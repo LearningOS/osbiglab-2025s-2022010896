@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include "file_ops.h"
 #include "hypercall.h"
@@ -12,7 +13,7 @@
 
 struct mem_region rt_region;
 
-static struct resource *rt_mem_res;
+// static struct resource *rt_mem_res;
 
 static const struct file_operations nimbos_fops = {
     .owner = THIS_MODULE,
@@ -38,6 +39,7 @@ static void init_hypercall(void)
 
 static irqreturn_t irq_handler(int irq, void *dev_id)
 {
+    pr_info("IRQ %d %p(%d)\n", irq, get_current(), get_current()->pid);
     pr_debug("IRQ %d %p(%d)\n", irq, get_current(), get_current()->pid);
     signal_all_handlers();
     return IRQ_HANDLED;
@@ -64,28 +66,29 @@ static int start_rtos(void)
         goto err_release_fw;
     }
 
-    rt_mem_res = request_mem_region(rt_region.start, rt_region.size, "RTOS memory");
-    if (!rt_mem_res) {
-        err = -ENOMEM;
-        pr_err("nimbos-driver: request_mem_region failed for RT image memory.\n");
-        pr_notice("nimbos-driver: Did you reserve the memory with \"memmap=\" "
-                  "or \"mem=\"?\n");
-        goto err_release_fw;
-    }
-    nimbos_mem = ioremap(rt_region.start, rt_region.size);
-    if (!nimbos_mem) {
-        err = -EBUSY;
-        pr_err("nimbos-driver: Unable to map RAM reserved for RT image at %08lx\n",
-               (unsigned long)rt_region.start);
-        goto err_release_mem_region;
-    }
+    // rt_mem_res = request_mem_region(rt_region.start, rt_region.size, "RTOS memory");
+    // if (!rt_mem_res) {
+    //     err = -ENOMEM;
+    //     pr_err("nimbos-driver: request_mem_region failed for RT image memory.\n");
+    //     pr_notice("nimbos-driver: Did you reserve the memory with \"memmap=\" "
+    //               "or \"mem=\"?\n");
+    //     goto err_release_fw;
+    // }
+    // nimbos_mem = ioremap(rt_region.start, rt_region.size);
+    nimbos_mem = (void *) 0xffffff8000000000UL;
+    // if (!nimbos_mem) {
+    //     err = -EBUSY;
+    //     pr_err("nimbos-driver: Unable to map RAM reserved for RT image at %08lx\n",
+    //            (unsigned long)rt_region.start);
+    //     goto err_release_mem_region;
+    // }
 
     memcpy(nimbos_mem, nimbos_image->data, nimbos_image->size);
     memset(nimbos_mem + nimbos_image->size, 0, rt_region.size - nimbos_image->size);
 
     flush_icache_range((unsigned long)nimbos_mem,
                        (unsigned long)(nimbos_mem + nimbos_image->size));
-    vunmap(nimbos_mem);
+    // vunmap(nimbos_mem);
 
     pr_info("Starting RTOS: entry=0x%llx, image_size=0x%lx\n", rt_region.start,
             nimbos_image->size);
@@ -94,11 +97,11 @@ static int start_rtos(void)
     release_firmware(nimbos_image);
     return 0;
 
-err_release_mem_region:
-    if (rt_mem_res) {
-        release_mem_region(rt_mem_res->start, resource_size(rt_mem_res));
-        rt_mem_res = NULL;
-    }
+// err_release_mem_region:
+    // if (rt_mem_res) {
+    //     release_mem_region(rt_mem_res->start, resource_size(rt_mem_res));
+    //     rt_mem_res = NULL;
+    // }
 
 err_release_fw:
     release_firmware(nimbos_image);
@@ -166,9 +169,9 @@ static void __exit nimbos_exit(void)
 
     free_irq(NIMBOS_SYSCALL_IPI_IRQ, &nimbos_device);
 
-    if (rt_mem_res) {
-        release_mem_region(rt_mem_res->start, resource_size(rt_mem_res));
-    }
+    // if (rt_mem_res) {
+    //     release_mem_region(rt_mem_res->start, resource_size(rt_mem_res));
+    // }
 
     misc_deregister(&nimbos_device);
 }

@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include <nimbos.h>
 
 int main()
 {
+    openlog("my_program", LOG_PID | LOG_CONS, LOG_USER);
     printf("Hello NimbOS!\n");
 
     int fd = nimbos_setup_syscall();
@@ -19,5 +21,6 @@ int main()
     }
 
     close(fd);
+    closelog();
     return 0;
 }
