@@ -67,6 +67,7 @@ DEFINE_MUTEX(jailhouse_lock);
 
 static bool jailhouse_enabled;
 static void *hypervisor_mem;
+static void *rtos_mem;
 
 static struct device *jailhouse_dev;
 static unsigned long hv_core_and_percpu_size;
@@ -75,6 +76,7 @@ static cpumask_t vm_cpus_mask;
 static atomic_t call_done;
 static int error_code;
 static struct resource *hypervisor_mem_res;
+static struct resource *rtos_mem_res;
 static struct mem_region hv_region, rt_region;
 
 static typeof(ioremap_page_range) *ioremap_page_range_sym;
@@ -207,6 +209,18 @@ static void jailhouse_firmware_free(void)
 	}
 	vunmap(hypervisor_mem);
 	hypervisor_mem = NULL;
+}
+
+static void rtos_free(void)
+{
+	if (rtos_mem_res)
+	{
+		release_mem_region(
+			rtos_mem_res->start, resource_size(rtos_mem_res));
+		rtos_mem_res = NULL;
+	}
+	vunmap(rtos_mem);
+	rtos_mem = NULL;
 }
 
 static int get_iomem_num(void)
@@ -375,7 +389,7 @@ static void init_system_config(
 		sizeof(config->signature));
 	config->revision = JAILHOUSE_CONFIG_REVISION;
 	config->hypervisor_memory.phys_start = hv_region->start;
-	config->hypervisor_memory.size = hv_region->size;
+	config->hypervisor_memory.size = hv_region->size - 0x2000;
 	config->rtos_memory.phys_start = rt_region->start;
 	config->rtos_memory.size = rt_region->size;
 	memcpy(
@@ -507,16 +521,38 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	/* Unmap hypervisor_mem from a previous "enable". The mapping has to be
 	 * redone since the root-cell config might have changed. */
 	jailhouse_firmware_free();
+	rtos_free();
 
-	hypervisor_mem_res =
-		request_mem_region(hv_region.start, hv_region.size, "EVM hypervisor");
-	if (!hypervisor_mem_res)
+	rtos_mem_res =
+		request_mem_region(rt_region.start, rt_region.size, "nimbos RTOS");
+	if (!rtos_mem_res)
 	{
 		pr_err("jailhouse: request_mem_region failed for hypervisor "
 			   "memory.\n");
 		pr_notice("jailhouse: Did you reserve the memory with "
 				  "\"memmap=\" or \"mem=\"?\n");
 		goto error_free_mem_regions;
+	}
+
+	/* Map physical memory region reserved for Jailhouse. */
+	rtos_mem = jailhouse_ioremap(rt_region.start, 0xffffff8000000000UL, rt_region.size);
+	if (!rtos_mem)
+	{
+		pr_err(
+			"jailhouse: Unable to map RAM reserved for rtos at %08lx\n",
+			(unsigned long)rt_region.start);
+		goto error_release_rt_memreg;
+	}
+
+	hypervisor_mem_res =
+		request_mem_region(hv_region.start, hv_region.size, "RVM hypervisor");
+	if (!hypervisor_mem_res)
+	{
+		pr_err("jailhouse: request_mem_region failed for hypervisor "
+			   "memory.\n");
+		pr_notice("jailhouse: Did you reserve the memory with "
+				  "\"memmap=\" or \"mem=\"?\n");
+		goto error_release_rt_memreg;
 	}
 
 	/* Map physical memory region reserved for Jailhouse. */
@@ -618,6 +654,7 @@ err_add_rt_cpus:
 	}
 
 	jailhouse_firmware_free();
+	rtos_free();
 
 error_release_memreg:
 	/* jailhouse_firmware_free() could have been called already and
@@ -626,6 +663,12 @@ error_release_memreg:
 		release_mem_region(
 			hypervisor_mem_res->start, resource_size(hypervisor_mem_res));
 	hypervisor_mem_res = NULL;
+
+error_release_rt_memreg:
+	if (rtos_mem_res)
+		release_mem_region(
+			rtos_mem_res->start, resource_size(rtos_mem_res));
+	rtos_mem_res = NULL;
 
 error_free_mem_regions:
 	kvfree(mem_regions);
@@ -852,6 +895,7 @@ static void __exit jailhouse_exit(void)
 	unregister_reboot_notifier(&jailhouse_shutdown_nb);
 	misc_deregister(&jailhouse_misc_dev);
 	jailhouse_firmware_free();
+	rtos_free();
 	root_device_unregister(jailhouse_dev);
 }
 
