@@ -13,8 +13,8 @@
 #   STATS = on | off            Given performance statistics.
 
 ARCH ?= x86_64
-VENDOR ?= intel
-LOG ?=
+VENDOR ?= amd
+LOG ?= debug
 STATS ?= off
 PORT ?= 2333
 

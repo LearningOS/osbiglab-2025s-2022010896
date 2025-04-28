@@ -319,6 +319,7 @@ impl Vcpu {
         if features.has_xsaves_xrstors() {
             val |= CpuCtrl2::XSAVES;
         }
+        // val |= CpuCtrl2::USR_WAIT_PAUSE;
         Vmcs::set_control(
             VmcsField32Control::SECONDARY_VM_EXEC_CONTROL,
             Msr::IA32_VMX_PROCBASED_CTLS2.read(),

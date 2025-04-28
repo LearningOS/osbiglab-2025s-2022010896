@@ -113,14 +113,20 @@ pub(super) unsafe fn start_ap(apic_id: u32, start_page_idx: u8) {
     } else {
         ApicId::XApic(apic_id as u8)
     };
+    info!("starting a");
 
     // INIT-SIPI-SIPI Sequence
     let mut lapic = lapic().inner.write();
+    info!("starting b");
     lapic.ipi_init(apic_id);
-    delay_us(10 * 1000); // 10ms
+    info!("starting c");
+    // delay_us(10 * 1000); // 10ms
+    info!("starting d");
     lapic.ipi_startup(apic_id, start_page_idx);
-    delay_us(200); // 200 us
+    info!("starting e");
+    // delay_us(200); // 200 us
     lapic.ipi_startup(apic_id, start_page_idx);
+    info!("starting f");
 }
 
 pub(super) unsafe fn shutdown_ap(apic_id: u32) {
@@ -136,6 +142,10 @@ pub(super) unsafe fn shutdown_ap(apic_id: u32) {
 
 /// Spinning delay for specified amount of time on microseconds.
 fn delay_us(us: u64) {
+    info!("delay in");
+    info!("{} {}", super::cpu::current_cycle(), super::cpu::frequency());
+    info!("delay mid");
+    info!("{}", super::cpu::current_cycle());
     let cycle_end = super::cpu::current_cycle() + us * super::cpu::frequency() as u64;
     while super::cpu::current_cycle() < cycle_end {
         core::hint::spin_loop();

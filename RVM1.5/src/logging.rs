@@ -3,6 +3,21 @@ use {
     log::{self, Level, LevelFilter, Log, Metadata, Record},
 };
 
+#[cfg(not(test))]
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ({
+        $crate::logging::print(format_args!($($arg)*));
+    });
+}
+
+#[cfg(not(test))]
+#[macro_export]
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
 pub fn init() {
     log::set_logger(&SimpleLogger).unwrap();
     log::set_max_level(match option_env!("LOG") {
@@ -18,21 +33,6 @@ pub fn init() {
 #[allow(dead_code)]
 pub fn print(args: fmt::Arguments) {
     crate::arch::serial::putfmt(args);
-}
-
-#[cfg(not(test))]
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => ({
-        $crate::logging::print(format_args!($($arg)*));
-    });
-}
-
-#[cfg(not(test))]
-#[macro_export]
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
 /// Add escape sequence to print with color in Linux console

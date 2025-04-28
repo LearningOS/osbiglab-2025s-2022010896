@@ -14,12 +14,37 @@ core::arch::global_asm!(
     start_page_paddr = const START_PAGE_PADDR,
 );
 
+pub fn delay_us(us: u64) {
+    // 需要根据实际CPU频率校准这个值
+    // 例如在启动时用已知时间源校准
+    let loops_per_us = 16; // 示例值，需要实际调整
+    
+    let mut dummy = 0;
+    for i in 0..(us * loops_per_us) {
+        // 使用volatile写入防止被优化掉
+        // println!("{}", i);
+        unsafe { core::ptr::write_volatile(&mut dummy, 0) };
+        core::hint::spin_loop();
+    }
+}
+
+pub fn true_current_cycle() -> u64 {
+    let mut aux = 0;
+    // println!("current_cycle");
+    let res = unsafe { core::arch::x86_64::__rdtscp(&mut aux) };
+    // let res = unsafe {rdtscp_manual(&mut aux)};
+    // println!("current_cycle end");
+    res
+    // 0
+}
+
 #[allow(clippy::uninit_assumed_init)]
 pub unsafe fn start_rt_cpus(entry_paddr: PhysAddr) -> HvResult {
     extern "C" {
         fn ap_start();
         fn ap_end();
     }
+    info!("start_rt_cpus 1");
     const U64_PER_PAGE: usize = PAGE_SIZE / 8;
 
     let start_page_ptr = phys_to_virt(START_PAGE_PADDR) as *mut u64;
@@ -27,6 +52,7 @@ pub unsafe fn start_rt_cpus(entry_paddr: PhysAddr) -> HvResult {
     let mut backup: [u64; U64_PER_PAGE * START_PAGE_COUNT] =
         core::mem::MaybeUninit::uninit().assume_init();
     backup.copy_from_slice(start_page);
+    info!("start_rt_cpus 2");
     core::ptr::copy_nonoverlapping(
         ap_start as *const u64,
         start_page_ptr,
@@ -34,10 +60,14 @@ pub unsafe fn start_rt_cpus(entry_paddr: PhysAddr) -> HvResult {
     );
     start_page[U64_PER_PAGE - 1] = entry_paddr as _; // entry
 
+    info!("start_rt_cpus 3");
     let max_cpus = crate::header::HvHeader::get().max_cpus;
     let mut new_cpu_id = PerCpu::entered_cpus();
     for apic_id in 0..max_cpus {
+        info!("start_rt_cpus 4 {}", apic::apic_to_cpu_id(apic_id));
         if apic::apic_to_cpu_id(apic_id) == u32::MAX {
+            // delay_us(10);
+            info!("start_rt_cpus 5");
             if new_cpu_id >= max_cpus {
                 break;
             }
@@ -48,13 +78,17 @@ pub unsafe fn start_rt_cpus(entry_paddr: PhysAddr) -> HvResult {
             new_cpu_id += 1;
 
             // wait for max 100ms
-            let cycle_end = cpu::current_cycle() + 100 * 1000 * cpu::frequency() as u64;
-            while PerCpu::entered_cpus() <= current_entered_cpus && cpu::current_cycle() < cycle_end
-            {
-                core::hint::spin_loop();
-            }
+            delay_us(100000000); //00
+            // let cycle_end = true_current_cycle() + 100 * 1000 * cpu::frequency() as u64;
+            // while PerCpu::entered_cpus() <= current_entered_cpus && true_current_cycle() < cycle_end
+            // {
+            //     core::hint::spin_loop();
+            // }
+            info!("current_entered_cpus: {}", current_entered_cpus);
+            info!("PerCpu::entered_cpus(): {}", PerCpu::entered_cpus());
         }
     }
+    info!("start_rt_cpus 6");
     start_page.copy_from_slice(&backup);
     Ok(())
 }

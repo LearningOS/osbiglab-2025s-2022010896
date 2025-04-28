@@ -69,6 +69,7 @@ fn wait_for_counter(counter: &AtomicU32, max_value: u32) -> HvResult {
 
 fn primary_init_early() -> HvResult {
     logging::init();
+    println!("println: Primary CPU init early...");
     info!("Primary CPU init early...");
 
     let system_config = HvSystemConfig::get();
