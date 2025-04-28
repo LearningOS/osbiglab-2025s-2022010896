@@ -33,7 +33,7 @@ impl Cell<'_> {
             hv_phys_end as GuestPhysAddr,
             hv_phys_end as HostPhysAddr,
             0x2000 as usize,
-            MemFlags::READ | MemFlags::READ | MemFlags::NO_HUGEPAGES,
+            MemFlags::READ | MemFlags::WRITE | MemFlags::NO_HUGEPAGES,
         ))?;
         // Map all physical memory regions.
         for region in cell_config.mem_regions() {

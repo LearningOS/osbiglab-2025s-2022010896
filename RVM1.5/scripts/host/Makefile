@@ -3,7 +3,7 @@ QEMU ?= /home/w-43/os/biglab/qemu-uintr/build/x86_64-softmmu/qemu-system-x86_64
 PORT ?= 2333
 UINTR ?= off
 
-qemu_image := ubuntu-20.04-server-cloudimg-amd64.img
+qemu_image := /home/w-43/os/biglab/imgs/ubuntu-20.04-server-cloudimg-amd64.img
 ifeq ($(UINTR), off)
   qemu_args := \
 	-smp 4 -m 8G -accel kvm -nographic \

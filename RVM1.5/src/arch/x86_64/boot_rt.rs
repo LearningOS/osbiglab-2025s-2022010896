@@ -20,22 +20,12 @@ pub fn delay_us(us: u64) {
     let loops_per_us = 16; // 示例值，需要实际调整
     
     let mut dummy = 0;
-    for i in 0..(us * loops_per_us) {
+    for _ in 0..(us * loops_per_us) {
         // 使用volatile写入防止被优化掉
         // println!("{}", i);
         unsafe { core::ptr::write_volatile(&mut dummy, 0) };
         core::hint::spin_loop();
     }
-}
-
-pub fn true_current_cycle() -> u64 {
-    let mut aux = 0;
-    // println!("current_cycle");
-    let res = unsafe { core::arch::x86_64::__rdtscp(&mut aux) };
-    // let res = unsafe {rdtscp_manual(&mut aux)};
-    // println!("current_cycle end");
-    res
-    // 0
 }
 
 #[allow(clippy::uninit_assumed_init)]
