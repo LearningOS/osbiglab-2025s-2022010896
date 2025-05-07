@@ -29,7 +29,7 @@
 #define JAILHOUSE_DEVICE "/dev/jailhouse"
 
 #define HV_PHYS_START 0x3a000000
-#define HV_MEM_SIZE (128 << 20) // 128M
+#define HV_MEM_SIZE ((128 << 20) - 0x2000) // 128M
 #define RT_MEM_SIZE (128 << 20) // 128M
 
 static const struct jailhouse_enable_args enable_args = {
@@ -39,7 +39,7 @@ static const struct jailhouse_enable_args enable_args = {
 			.size = HV_MEM_SIZE,
 		},
 	.rt_region = {
-		.start = HV_PHYS_START + HV_MEM_SIZE,
+		.start = HV_PHYS_START + HV_MEM_SIZE + 0x2000,
 		.size = RT_MEM_SIZE,
 	}};
 
