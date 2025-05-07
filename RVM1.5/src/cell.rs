@@ -28,13 +28,13 @@ impl Cell<'_> {
             hv_phys_size,
             MemFlags::READ | MemFlags::NO_HUGEPAGES,
         ))?;
-        warn!("I warn you");
-        gpm.insert(MemoryRegion::new_with_offset_mapper(
-            hv_phys_end as GuestPhysAddr,
-            hv_phys_end as HostPhysAddr,
-            0x2000 as usize,
-            MemFlags::READ | MemFlags::WRITE | MemFlags::NO_HUGEPAGES,
-        ))?;
+        warn!("I warn you {} {}", hv_phys_start, hv_phys_size);
+        // gpm.insert(MemoryRegion::new_with_offset_mapper(
+        //     hv_phys_end as GuestPhysAddr,
+        //     hv_phys_end as HostPhysAddr,
+        //     0x2000 as usize,
+        //     MemFlags::READ | MemFlags::WRITE | MemFlags::NO_HUGEPAGES,
+        // ))?;
         // Map all physical memory regions.
         for region in cell_config.mem_regions() {
             gpm.insert(MemoryRegion::new_with_offset_mapper(
