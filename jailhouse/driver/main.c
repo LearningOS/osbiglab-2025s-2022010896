@@ -509,7 +509,7 @@ static int jailhouse_cmd_enable(struct jailhouse_enable_args __user *arg)
 	jailhouse_firmware_free();
 
 	hypervisor_mem_res =
-		request_mem_region(hv_region.start, hv_region.size, "EVM hypervisor");
+		request_mem_region(hv_region.start, hv_region.size, "RVM hypervisor");
 	if (!hypervisor_mem_res)
 	{
 		pr_err("jailhouse: request_mem_region failed for hypervisor "
