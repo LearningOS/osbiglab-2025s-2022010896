@@ -44,6 +44,7 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 #include "qemu/log.h"
+#include "target/i386/tcg/tcg-cpu.h"
 static bool Debug = true;
 
 /* Helpers for building CPUID[2] descriptors: */
@@ -1417,9 +1418,9 @@ ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT] = {
     [XSTATE_PKRU_BIT] =
           { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
             .size = sizeof(XSavePKRU) },
-    // [XSTATE_UINTR_BIT] = // 改！！
-    //       { .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_UINTR,
-    //         .size = sizeof(XSaveUINTR), .offset = 0xa90},
+    [XSTATE_UINTR_BIT] = // 改！！
+          { .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_UINTR,
+            .size = sizeof(XSaveUINTR), .offset = offsetof(X86XSaveArea, uintr_state)},
     [XSTATE_XTILE_CFG_BIT] = {
         .feature = FEAT_7_0_EDX, .bits = CPUID_7_0_EDX_AMX_TILE,
         .size = sizeof(XSaveXTILECFG),
@@ -1799,7 +1800,7 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
             CPUID_PSE36,
         .features[FEAT_1_ECX] =
-            CPUID_EXT_SSE3 | CPUID_EXT_CX16,
+            CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_XSAVE,
             // |  CPUID_EXT_XSAVE, //改
         // .features[FEAT_7_0_EBX] = // 改
         //     CPUID_7_0_EBX_MPX,
@@ -1811,6 +1812,9 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EDX_UINTR,  // 改
         .features[FEAT_XSAVE] = //改
             CPUID_XSAVE_XSAVEOPT|CPUID_XSAVE_XGETBV1,
+        // .features[FEAT_XSAVE] =
+        //     CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
+        //     CPUID_XSAVE_XGETBV1,
         .xlevel = 0x8000000A,
         .model_id = "QEMU Virtual CPU version " QEMU_HW_VERSION,
     },
@@ -3677,6 +3681,8 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             CPUID_PAT | CPUID_PSE36 | CPUID_CLFLUSH |
             CPUID_MMX |
             CPUID_FXSR | CPUID_SSE | CPUID_SSE2,
+        // .features[FEAT_7_0_EDX] =
+        //     CPUID_7_0_EDX_UINTR,  // 改
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_MONITOR |
             CPUID_EXT_SSSE3 |
@@ -5526,6 +5532,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              */
             *ebx = kvm_enabled() ? *ecx : xsave_area_size(env->xcr0);
         } else if (count == 1) {
+            // qemu_log("qemu: cpuid_count(XSTATE_CPUID, 1)\n");
             *eax = env->features[FEAT_XSAVE];
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
             if ((x86_cpu_xsave_components(cpu) >> count) & 1) {

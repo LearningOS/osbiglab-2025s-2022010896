@@ -866,6 +866,10 @@ static void switch_uif(CPUX86State *env, bool on){
     // uint64_t upid_phyaddress = get_hphys2(cs, env->uintr_pd, MMU_DATA_LOAD, &prot);
     // uintr_upid upid;
     // cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+    // if (on != (bool)env->uintr_uif) {
+    //     qemu_log("env: %lx, uif: %ld\n", (long unsigned int)env, env->uintr_uif);
+    //     qemu_log("switch uif, core: %d, on: %d\n", get_apic_id(cpu_get_current_apic()), on);
+    // }
     if(on){
         env->uintr_uif = 1;
         // upid.nc.reserved1 = 1;
@@ -900,7 +904,8 @@ void helper_testui(CPUX86State *env){
 }
 
 void helper_clui(CPUX86State *env){
-    // qemu_log("clui core: %d\n", get_apic_id(cpu_get_current_apic()));
+    // if (env->uintr_uif)
+    //     qemu_log("clui core: %d\n", get_apic_id(cpu_get_current_apic()));
     switch_uif(env, false);
 }
 
@@ -925,6 +930,7 @@ void helper_rrnzero(CPUX86State *env){ // 改
     env->regs[R_ESP] = esp;
     env->eflags &= ~(TF_MASK | RF_MASK);
     env->eip = env->uintr_handler;
+    qemu_log("entering handler, address: %lx\n", env->uintr_handler);
     switch_uif(env, false);
 }
 
@@ -986,9 +992,9 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
             int id = get_apic_id(dev);
             qemu_log("--uif zero,prev:%d | id:%d return\n",cpl, id);
             rrzero_count +=1; 
-            if(rrzero_count > 2000){
+            if(rrzero_count == 2001){
                 qemu_log("too many zeros, exit\n");
-                exit(2);
+                // exit(2);
             }
             helper_clear_eoi(env);
             return;
@@ -1004,6 +1010,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         }
         CPUState *cs = env_cpu(env);
         uint64_t upid_phyaddress = get_hphys2(cs, env->uintr_pd, MMU_DATA_LOAD, NULL);
+        qemu_log("upid_phyaddress: %lx\n", env->uintr_pd);
         uintr_upid upid;
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
         upid.nc.status &= (~1); // clear on
@@ -1014,8 +1021,15 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
         }
         cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);  // write back
         helper_clear_eoi(env);
-        if(send)helper_rrnzero(env);
-        else qemu_log("do not go to handler\n");
+        if(send)
+        {
+            qemu_log("sending uintr\n");
+            helper_rrnzero(env);
+        }
+        else
+        {
+            qemu_log("do not go to handler, env->uintr_rr: %lx, upid.puir: %lx\n", env->uintr_rr, upid.puir);
+        }
         return;
     }
 

@@ -82,13 +82,18 @@ void helper_rdtsc(CPUX86State *env) // ？？？ 读取时间相关的函数
 
 #define UPID_ON 1
 void helper_senduipi(CPUX86State *env ,int reg_index){
+    qemu_log("senduipi reg_index: %d\n", reg_index);
     uint32_t uittsz = (uint32_t)env->uintr_misc;
     int uitte_index = env->regs[R_EAX];
     if(reg_index == 244){
         uitte_index = env->regs[R_R12];
         // qemu_log("read from r12, index :%d\n", uitte_index);
     }
+    
+    qemu_log("uitt addr: 0x%lx\n", env->uintr_tt);
     if (uitte_index > uittsz){
+        qemu_log("uitt size: %d\n", uittsz);
+        qemu_log("uitte index out of range: %d\n", uitte_index);
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     qemu_log("uitte index:%d\n", uitte_index);
@@ -105,7 +110,7 @@ void helper_senduipi(CPUX86State *env ,int reg_index){
     uint64_t upid_phyaddress = get_hphys2(cs, uitte.target_upid_addr, MMU_DATA_LOAD, NULL);
     qemu_log("uitt addr: 0x%lx  upid addr: 0x%lx\n", env->uintr_tt, uitte.target_upid_addr); 
     struct uintr_upid upid;
-    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, false);
+    cpu_physical_memory_rw(upid_phyaddress, &upid, sizeof(uintr_upid), false);
     // tempUPID.PIR[tempUITTE.UV] := 1;
     upid.puir |= 1<<uitte.user_vec;
     
@@ -119,7 +124,7 @@ void helper_senduipi(CPUX86State *env ,int reg_index){
         sendNotify = false;
     }
     //write tempUPID to 16 bytes at tempUITTE.UPIDADDR;// release lock
-    cpu_physical_memory_rw(upid_phyaddress, &upid, 16, true);
+    cpu_physical_memory_rw(upid_phyaddress, &upid, sizeof(uintr_upid), true);
     qemu_mutex_unlock_iothread();
 
     qemu_log("senduipi core: %d uitte index:%d  dist core: %d ifsend: %d, nv: %d\n", get_apic_id(cpu_get_current_apic()), uitte_index, upid.nc.ndst >> 8, sendNotify,upid.nc.nv);
